@@ -14,7 +14,7 @@ BOOL DisplayString(IDirectDrawSurface *pdds, LPCSTR szString, int x, int y)
 	
 	TextOut(hdc, x, y, szString, lstrlen(szString));
 
-	if (pdds->ReleaseDC(&hdc) != DD_OK)
+	if (pdds->ReleaseDC(hdc) != DD_OK)
 		return FALSE;
 	
 	return TRUE;
