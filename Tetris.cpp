@@ -54,6 +54,7 @@
 #include "font.h"
 #include "dsutil.h"
 
+#include <string>
 #include <vector>
 
 HRESULT					result;         // global variable
@@ -266,6 +267,9 @@ LRESULT CALLBACK WindowProc(
 
 		case VK_UP:
 			RotateClockwise(&player[0]);
+			break;
+		case VK_F2:
+			RotateCounterclockwise(&player[0]);
 			break;
 
 		case VK_DOWN:
@@ -597,6 +601,62 @@ bool CheckValid(const TETRADE& tetrade, int blockType) {
 	return CheckValid(tetrade, blockType, offset);
 }
 
+
+BOOL RotateCounterclockwise(struct JOUEUR* player) {
+	int type = player[0].tetrade.blocktype;
+	int newtype = type - 1;
+
+	if (newtype < T_BLOCK)
+		newtype = T_BLOCK + 3;
+	else if (newtype == T_BLOCK + 3)
+		newtype = L1_BLOCK + 3;
+	else if (newtype == L1_BLOCK + 3)
+		newtype = L2_BLOCK + 3;
+	else if (newtype == L2_BLOCK + 3)
+		newtype = S1_BLOCK + 3;
+	else if (newtype == S1_BLOCK + 3)
+		newtype = S2_BLOCK + 3;
+	else if (newtype == S2_BLOCK + 3)
+		newtype = BAR_BLOCK + 3;
+	else if (newtype == BAR_BLOCK + 3)
+		newtype = CUBE_BLOCK;
+
+	// Check if valid position
+	if (!CheckValid(player[0].tetrade, newtype)) {
+		if (newtype == CUBE_BLOCK) {
+			return FALSE;
+		}
+
+		// SpawnState --> Left --> 2 --> Right --> SpawnState
+
+		// Figure out if we are in Spawn (0), R, 2 or L position
+		int rotationState = newtype % 4;
+
+		// if 0 (SpawnState), then we look for 3
+		// if 1 (Right), then we look for 2
+		// if 2 (2), then we look for 1
+		// if 3 (Left), then we look for 0
+	    rotationState = 3 - rotationState;
+
+		bool isBar = newtype >= BAR_BLOCK && newtype < CUBE_BLOCK;
+
+		const auto& tests = isBar ? iWallKickData.counterclockwises[rotationState].tests : genericWallKickData.counterclockwises[rotationState].tests;
+		for (const auto& test : tests) {
+			if (CheckValid(player[0].tetrade, newtype, test)) {
+				player[0].tetrade.x += test.x;
+				player[0].tetrade.y += test.y;
+				player[0].tetrade.blocktype = newtype;
+				return TRUE;
+			}
+		}
+
+		return FALSE;
+	}
+
+	player[0].tetrade.blocktype = newtype;
+	return TRUE;
+}
+
 BOOL RotateClockwise(struct JOUEUR *player)
 {
 	int type = player[0].tetrade.blocktype;
@@ -619,6 +679,7 @@ BOOL RotateClockwise(struct JOUEUR *player)
 
 	// Check if valid position
 	if (!CheckValid(player[0].tetrade, newtype)) {
+		OutputDebugString("Invalid Rotation, check for wallkick\n");
 		if (newtype == CUBE_BLOCK) {
 			return FALSE;
 		}
@@ -633,13 +694,20 @@ BOOL RotateClockwise(struct JOUEUR *player)
 
 		bool isBar = newtype >= BAR_BLOCK && newtype < CUBE_BLOCK;
 
+		OutputDebugString(("RotationState is: " + std::to_string(rotationState) + "\n").c_str());
+
 		const auto &tests = isBar ? iWallKickData.clockwises[rotationState].tests : genericWallKickData.clockwises[rotationState].tests;
+		int testIndex = 0;
 		for (const auto& test : tests) {
+			OutputDebugString(("Running test " + std::to_string(testIndex++) + "\n").c_str());
 			if (CheckValid(player[0].tetrade, newtype, test)) {
+				OutputDebugString(("Test succeeded " + std::to_string(testIndex - 1) + "\n").c_str());
 				player[0].tetrade.x += test.x;
 				player[0].tetrade.y += test.y;
 				player[0].tetrade.blocktype = newtype;
 				return TRUE;
+			} else {
+				OutputDebugString(("Test failed " + std::to_string(testIndex - 1) + "\n").c_str());
 			}
 		}
 			

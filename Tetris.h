@@ -80,6 +80,7 @@ BOOL DestroyLine(struct JOUEUR *player, struct LINE *line);
 // move the block down accorinding. Adding score calculation and everything.
 
 BOOL StopBlock(struct JOUEUR *player);
+BOOL RotateCounterclockwise(struct JOUEUR* player);
 BOOL RotateClockwise(struct JOUEUR *player);
 
 char tetra[25][4][4] =
