@@ -139,6 +139,20 @@ void InitWallKickData() {
 	genericWallKickData.counterclockwises.push_back(RotationTest(Point(-1, 0), Point(-1, -1), Point(0, 2), Point(-1, 2)));
 	genericWallKickData.counterclockwises.push_back(RotationTest(Point(-1, 0), Point(-1, 1), Point(0, -2), Point(-1, -2)));
 	genericWallKickData.counterclockwises.push_back(RotationTest(Point(1, 0), Point(1, -1), Point(0, 2), Point(1, 2)));
+
+	//            (0)      (1)   (2)       (3)
+	// SpawnState --> Right --> 2 --> Left --> SpawnState
+	iWallKickData.clockwises.push_back(RotationTest(Point(-2, 0), Point(1, 0), Point(-2, -1), Point(1, 2)));
+	iWallKickData.clockwises.push_back(RotationTest(Point(-1, 0), Point(2, 0), Point(-1, 2), Point(2, -1)));
+	iWallKickData.clockwises.push_back(RotationTest(Point(2, 0), Point(-1, 0), Point(2, 1), Point(-1, -2)));
+	iWallKickData.clockwises.push_back(RotationTest(Point(1, 0), Point(-2, 0), Point(1, -2), Point(-2, 1)));
+
+	//            (0)      (1)   (2)       (3)
+	// SpawnState --> Left --> 2 --> Right --> SpawnState
+	iWallKickData.counterclockwises.push_back(RotationTest(Point(-1, 0), Point(2, 0), Point(-1, 2), Point(2, -1)));
+	iWallKickData.counterclockwises.push_back(RotationTest(Point(-2, 0), Point(1, 0), Point(-2, -1), Point(1, 2)));
+	iWallKickData.counterclockwises.push_back(RotationTest(Point(1, 0), Point(-2, 0), Point(1, -2), Point(-2, 1)));
+	iWallKickData.counterclockwises.push_back(RotationTest(Point(2, 0), Point(-1, 0), Point(2, 1), Point(-1, -2)));
 }
 
 int WINAPI WinMain(
@@ -553,29 +567,34 @@ void InitVar()
 	// Clear the structure of random garbage data
 	ZeroMemory(&game, sizeof(game));
 	ZeroMemory(&player, sizeof(player));
-	// start the randomizer
-	srand(time(NULL));
+
+	srand(static_cast<unsigned int>(time(nullptr)));
 	player[0].next.blocktype = GetRandomBlock();
 }
 
 // Check if the blockType is in a valid position
-bool CheckValid(const TETRADE& tetrade, int blockType) {
+bool CheckValid(const TETRADE& tetrade, int blockType, const Point& offset) {
 	for (int y = 0; y != 4; y++) {
 		for (int x = 0; x != 4; x++) {
 			if (tetra[blockType][x][y]) { // block there
-				if (game[tetrade.x + x][tetrade.y + y].flag & FULL)
+				if (game[tetrade.x + offset.x + x][tetrade.y + offset.y + y].flag & FULL)
 					return false;
-				if (tetrade.x + x == -1)
+				if (tetrade.x + offset.x + x <= -1)
 					return false;
-				if (tetrade.x + x == 10)
+				if (tetrade.x + offset.x + x >= 10)
 					return false;
-				if (tetrade.y + y == 24)
+				if (tetrade.y + offset.y + y >= 24)
 					return false;
 			}
 		}
 	}
 
 	return true;
+}
+
+bool CheckValid(const TETRADE& tetrade, int blockType) {
+	Point offset(0, 0);
+	return CheckValid(tetrade, blockType, offset);
 }
 
 BOOL RotateClockwise(struct JOUEUR *player)
@@ -600,8 +619,30 @@ BOOL RotateClockwise(struct JOUEUR *player)
 
 	// Check if valid position
 	if (!CheckValid(player[0].tetrade, newtype)) {
-		// Try various wallkicks
+		if (newtype == CUBE_BLOCK) {
+			return FALSE;
+		}
 
+		// Figure out if we are in Spawn (0), R, 2 or L position
+		int rotationState = newtype % 4;
+
+		rotationState--;
+		if (rotationState == -1) {
+			rotationState = 3;
+		}
+
+		bool isBar = newtype >= BAR_BLOCK && newtype < CUBE_BLOCK;
+
+		const auto &tests = isBar ? iWallKickData.clockwises[rotationState].tests : genericWallKickData.clockwises[rotationState].tests;
+		for (const auto& test : tests) {
+			if (CheckValid(player[0].tetrade, newtype, test)) {
+				player[0].tetrade.x += test.x;
+				player[0].tetrade.y += test.y;
+				player[0].tetrade.blocktype = newtype;
+				return TRUE;
+			}
+		}
+			
 		return FALSE;
 	}
 
