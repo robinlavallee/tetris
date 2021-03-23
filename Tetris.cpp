@@ -54,6 +54,8 @@
 #include "font.h"
 #include "dsutil.h"
 
+#include <vector>
+
 HRESULT					result;         // global variable
 
 LPDIRECTDRAW            lpDD;           // DirectDraw object
@@ -71,15 +73,61 @@ BLOCK					game[10][24];  // The tetris blocks
 
 JOUEUR player[1];
 
+struct Point {
+	Point(int _x, int _y) : x(_x), y(_y) {}
+	int x;
+	int y;
+};
+
+struct RotationTest {
+	RotationTest() = default;
+
+	RotationTest(Point test1, Point test2, Point test3, Point test4) {
+		tests.push_back(test1);
+		tests.push_back(test2);
+		tests.push_back(test3);
+		tests.push_back(test4);
+	}
+
+	std::vector<Point> tests;
+};
+
+struct GenericWallKickData {
+	std::vector<RotationTest> clockwises;
+	std::vector<RotationTest> counterclockwises;
+};
+
+struct IWallKickData {
+	std::vector<RotationTest> clockwises;
+	std::vector<RotationTest> counterclockwises;
+};
+
+GenericWallKickData genericWallKickData;
+IWallKickData iWallKickData;
+
+void InitWallKickData() {
+	// SpawnState -> Right -> 2 --> Left -> SpawnState
+	genericWallKickData.clockwises.push_back(RotationTest(Point(-1, 0), Point(-1, 1), Point(0, -2), Point(-1, -2)));
+	genericWallKickData.clockwises.push_back(RotationTest(Point(1, 0), Point(1, -1), Point(0, 2), Point(1, 2)));
+	genericWallKickData.clockwises.push_back(RotationTest(Point(1, 0), Point(1, 1), Point(0, -2), Point(1, -2)));
+	genericWallKickData.clockwises.push_back(RotationTest(Point(-1, 0), Point(-1, -1), Point(0, 2), Point(-1, 2)));
+
+	// SpawnState -> Left -> 2 -> Right -> SpawnState
+	genericWallKickData.counterclockwises.push_back(RotationTest(Point(1, 0), Point(1, 1), Point(0, -2), Point(1, -2)));
+	genericWallKickData.counterclockwises.push_back(RotationTest(Point(-1, 0), Point(-1, -1), Point(0, 2), Point(-1, 2)));
+	genericWallKickData.counterclockwises.push_back(RotationTest(Point(-1, 0), Point(-1, 1), Point(0, -2), Point(-1, -2)));
+	genericWallKickData.counterclockwises.push_back(RotationTest(Point(1, 0), Point(1, -1), Point(0, 2), Point(1, 2)));
+}
+
 int WINAPI WinMain(
 	HINSTANCE  hInstance,	// handle to current instance
     HINSTANCE  hPrevInstance,	// handle to previous instance
     LPSTR  lpCmdLine,	// pointer to command line
     int  nShowCmd)
-
-
 {
 	MSG msg;
+
+	InitWallKickData();
 
 	InitVar();
 	DoInit(hInstance, nShowCmd);
@@ -485,7 +533,7 @@ void ReDisplayScreen()
 	// display the number of line
 
 	char text[256];
-	sprintf(text, "%i", player[0].line);
+	snprintf(text, sizeof(text), "%i", player[0].line);
 	DisplayString(lpDDSBack, text, 480, 160);
 	
 	Flipper();
@@ -503,8 +551,6 @@ void InitVar()
 
 }
 
-
-
 BOOL TurnBloc(struct JOUEUR *player)
 {
 	int type;
@@ -514,8 +560,6 @@ BOOL TurnBloc(struct JOUEUR *player)
 
 	type = player[0].tetrade.blocktype;
 	newtype = type + 1;
-
-	// This is hard coded, because I had nothing better to do.
 
 	if (newtype == L1_BLOCK)
 		newtype = T_BLOCK;
@@ -581,11 +625,6 @@ BOOL TurnBloc(struct JOUEUR *player)
 	player[0].tetrade.blocktype = newtype;
 	return TRUE;
 }
-
-
-
-
-
 
 BOOL CheckLeft(struct JOUEUR *player)
 {
