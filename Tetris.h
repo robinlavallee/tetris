@@ -15,8 +15,8 @@
 #define L2_BLOCK	8	// 4 phases
 #define S1_BLOCK	12	// 4 phases
 #define S2_BLOCK	16	// 4 phases
-#define CUBE_BLOCK	20	// 1 phase
-#define BAR_BLOCK	21	// 2 phases
+#define BAR_BLOCK	20	// 4 phases
+#define CUBE_BLOCK	24	// 1 phase
 
 #define RED 0
 #define YELLOW 1
@@ -29,7 +29,6 @@
 //DisplayBlock defines...
 #define RELA 0
 #define ABSOLUTE 1
-
 
 typedef struct BLOCK {
 	int color;
@@ -81,9 +80,9 @@ BOOL DestroyLine(struct JOUEUR *player, struct LINE *line);
 // move the block down accorinding. Adding score calculation and everything.
 
 BOOL StopBlock(struct JOUEUR *player);
-BOOL TurnBloc(struct JOUEUR *player);
+BOOL RotateClockwise(struct JOUEUR *player);
 
-char tetra[23][4][4] =
+char tetra[25][4][4] =
 {
 	// T_BLOCK
 	{
@@ -210,28 +209,39 @@ char tetra[23][4][4] =
 		{1, 0, 0, 0},
 		{0, 0, 0, 0}
 	},
+	// BAR_BLOCK
 	{
-		{0, 1, 1, 0},
-		{0, 1, 1, 0},
+		{0, 0, 0, 0},
+		{1, 1, 1, 1},
 		{0, 0, 0, 0},
 		{0, 0, 0, 0}
 	},
-	// BAR_BLOCK
+	{
+		{0, 0, 1, 0},
+		{0, 0, 1, 0},
+		{0, 0, 1, 0},
+		{0, 0, 1, 0}
+	},
+	{
+		{0, 0, 0, 0},
+		{0, 0, 0, 0},
+		{1, 1, 1, 1},
+		{0, 0, 0, 0}
+	},
 	{
 		{0, 1, 0, 0},
 		{0, 1, 0, 0},
 		{0, 1, 0, 0},
 		{0, 1, 0, 0}
 	},
+	// CUBE_BLOCK
 	{
-		{0, 0, 0, 0},
-		{1, 1, 1, 1},
+		{0, 1, 1, 0},
+		{0, 1, 1, 0},
 		{0, 0, 0, 0},
 		{0, 0, 0, 0}
-	}
+	},
 };
-
-
 
 /* FLAG
 0: Type of block

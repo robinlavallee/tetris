@@ -28,7 +28,6 @@
  *[X]CheckDown This one has to be changed.
  *[X]CheckRight This one has to be changed.
  *[X]CheckLeft This one has to be changed.
- *[ ]TurnBlock (going to be changed to TurnLeft and TurnRight) // maybe later...
  *[X]StopBlock This one has to be changed.
  *[X]ReDisplayScreen This one has to be changed.
  *
@@ -47,6 +46,7 @@
 #include <dsound.h>
 #include <ddraw.h>
 #include <mmsystem.h>
+#include <time.h>
 #include <stdio.h>
 #include "tetris.h"
 #include "bitmap.h"
@@ -105,14 +105,36 @@ struct IWallKickData {
 GenericWallKickData genericWallKickData;
 IWallKickData iWallKickData;
 
+int GetRandomBlock() {
+	int types[] = { T_BLOCK, L1_BLOCK, L2_BLOCK, S1_BLOCK, S2_BLOCK, BAR_BLOCK, CUBE_BLOCK };
+	int newBlockType = types[rand() % 7];
+	return newBlockType;
+}
+
+// The tretrade are written in usual human form, but that means we have to index them with [y][x] which can be considered confusing
+// instead, we swizzle them back so we can refer them to [x][y] instead
+void SwizzleTetra() {
+	for (int t = 0; t < 25; ++t) {
+		for (int i = 0; i < 4; ++i) {
+			for (int j = 0; j < i; ++j) {
+				char temp = tetra[t][i][j];
+				tetra[t][i][j] = tetra[t][j][i];
+				tetra[t][j][i] = temp;
+			}
+		}
+	}
+}
+
 void InitWallKickData() {
-	// SpawnState -> Right -> 2 --> Left -> SpawnState
+	//            (0)       (1)   (2)      (3)
+	// SpawnState --> Right --> 2 --> Left --> SpawnState
 	genericWallKickData.clockwises.push_back(RotationTest(Point(-1, 0), Point(-1, 1), Point(0, -2), Point(-1, -2)));
 	genericWallKickData.clockwises.push_back(RotationTest(Point(1, 0), Point(1, -1), Point(0, 2), Point(1, 2)));
 	genericWallKickData.clockwises.push_back(RotationTest(Point(1, 0), Point(1, 1), Point(0, -2), Point(1, -2)));
 	genericWallKickData.clockwises.push_back(RotationTest(Point(-1, 0), Point(-1, -1), Point(0, 2), Point(-1, 2)));
 
-	// SpawnState -> Left -> 2 -> Right -> SpawnState
+	//            (0)      (1)   (2)       (3)
+	// SpawnState --> Left --> 2 --> Right --> SpawnState
 	genericWallKickData.counterclockwises.push_back(RotationTest(Point(1, 0), Point(1, 1), Point(0, -2), Point(1, -2)));
 	genericWallKickData.counterclockwises.push_back(RotationTest(Point(-1, 0), Point(-1, -1), Point(0, 2), Point(-1, 2)));
 	genericWallKickData.counterclockwises.push_back(RotationTest(Point(-1, 0), Point(-1, 1), Point(0, -2), Point(-1, -2)));
@@ -127,8 +149,8 @@ int WINAPI WinMain(
 {
 	MSG msg;
 
+	SwizzleTetra();
 	InitWallKickData();
-
 	InitVar();
 	DoInit(hInstance, nShowCmd);
 	
@@ -194,7 +216,6 @@ LRESULT CALLBACK WindowProc(
 			player[0].tetrade.y=1;
 			player[0].tetrade.blocktype = CUBE_BLOCK;
 			break;
-
 		case VK_F6:
 			player[0].tetrade.x=1;
 			player[0].tetrade.y=1;
@@ -205,23 +226,16 @@ LRESULT CALLBACK WindowProc(
 			player[0].tetrade.y=1;
 			player[0].tetrade.blocktype = L2_BLOCK;
 			break;
-
 		case VK_F4:
 			player[0].tetrade.x =1;
 			player[0].tetrade.y=1;
 			player[0].tetrade.blocktype = S1_BLOCK;
 			break;
-		
 		case VK_F3:
 			player[0].tetrade.x =1;
 			player[0].tetrade.y=1;
 			player[0].tetrade.blocktype = S2_BLOCK;
 			break;
-
-		//case VK_F10:
-		//	CreateBlock(3, 3, RANDOM);
-		//	break;
-
 		case VK_F12:
 			StopBlock(&player[0]);
 			break;
@@ -237,7 +251,7 @@ LRESULT CALLBACK WindowProc(
 			break;
 
 		case VK_UP:
-			TurnBloc(&player[0]);
+			RotateClockwise(&player[0]);
 			break;
 
 		case VK_DOWN:
@@ -253,15 +267,13 @@ LRESULT CALLBACK WindowProc(
 				
 			}
 			break;
-
 		}
 		ReDisplayScreen();
 	}
-	
 
 	if (uMsg == WM_TIMER) {
 		ReDisplayScreen();
-		}
+	}
 
 	if (uMsg == WM_DESTROY) {
 		if( lpDD2 != NULL )
@@ -358,13 +370,10 @@ static BOOL DoInit(HINSTANCE hInstance, int nShowCmd)
 
 	result = DirectDrawCreate(NULL, &lpDD, NULL);
 	if (result == DD_OK) {
-
 		result = lpDD->SetCooperativeLevel(hwnd, DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN);
 		if (result == DD_OK) {
-
 			result = lpDD->QueryInterface(IID_IDirectDraw2, (LPVOID *)&lpDD2);
 			if(result == DD_OK) {
-						
 				result = lpDD2->SetDisplayMode(640, 480, 8, 0, 0);
 				if (result == DD_OK) {
 
@@ -403,9 +412,7 @@ static BOOL DoInit(HINSTANCE hInstance, int nShowCmd)
 
 void Flipper(void) 
 {
-	
 	// flip the backbuffer into the primary buffer (screen)
-
     while(1)
     {
         result = lpDDSPrimary->Flip(NULL, 0);
@@ -425,7 +432,6 @@ void Flipper(void)
             break;
         }
     }
-	
 }
 
 void CreateBlock(struct JOUEUR *player, int x, int y, int flag)
@@ -433,17 +439,19 @@ void CreateBlock(struct JOUEUR *player, int x, int y, int flag)
 	player[0].tetrade.x = x;
 	player[0].tetrade.y = y;
 	
-	if (flag == RANDOM)
-		player[0].tetrade.blocktype = (rand() % 18) + 1;
+	int newBlockType = GetRandomBlock();
+
+	if (flag == RANDOM) {
+		player[0].tetrade.blocktype = newBlockType;
+	}
 	
 	if (flag == NEXT) 
 	{
 		// this simple create the block showed by the player.next
 		player[0].tetrade.blocktype = player[0].next.blocktype;
 		// create a new next block...
-		player[0].next.blocktype = (rand() % 18) + 1; // this needs to be updated
-	}
-		
+		player[0].next.blocktype = newBlockType;
+	}	
 }
 
 BOOL CanMove()
@@ -546,20 +554,34 @@ void InitVar()
 	ZeroMemory(&game, sizeof(game));
 	ZeroMemory(&player, sizeof(player));
 	// start the randomizer
-	srand(3452);
-	player[0].next.blocktype = (rand() % 18) + 1; // this needs to be updated
-
+	srand(time(NULL));
+	player[0].next.blocktype = GetRandomBlock();
 }
 
-BOOL TurnBloc(struct JOUEUR *player)
-{
-	int type;
-	int newtype;
-	int x;
-	int y;
+// Check if the blockType is in a valid position
+bool CheckValid(const TETRADE& tetrade, int blockType) {
+	for (int y = 0; y != 4; y++) {
+		for (int x = 0; x != 4; x++) {
+			if (tetra[blockType][x][y]) { // block there
+				if (game[tetrade.x + x][tetrade.y + y].flag & FULL)
+					return false;
+				if (tetrade.x + x == -1)
+					return false;
+				if (tetrade.x + x == 10)
+					return false;
+				if (tetrade.y + y == 24)
+					return false;
+			}
+		}
+	}
 
-	type = player[0].tetrade.blocktype;
-	newtype = type + 1;
+	return true;
+}
+
+BOOL RotateClockwise(struct JOUEUR *player)
+{
+	int type = player[0].tetrade.blocktype;
+	int newtype = type + 1;
 
 	if (newtype == L1_BLOCK)
 		newtype = T_BLOCK;
@@ -569,58 +591,19 @@ BOOL TurnBloc(struct JOUEUR *player)
 		newtype = L2_BLOCK;
 	if (newtype == S2_BLOCK)
 		newtype = S1_BLOCK;
-	if (newtype == CUBE_BLOCK)
-		newtype = S2_BLOCK;
 	if (newtype == BAR_BLOCK)
-		newtype = CUBE_BLOCK;
-	if (newtype == BAR_BLOCK+2)
+		newtype = S2_BLOCK;
+	if (newtype == CUBE_BLOCK)
 		newtype = BAR_BLOCK;
+	if (newtype == CUBE_BLOCK+1)
+		newtype = CUBE_BLOCK;
 
-	
-	// Check for gaming blocks
-	for (y=0;y!=4;y++) {
-		for (x=0;x!=4;x++) {
-			if (tetra[newtype][x][y]) { // block there
-				if (game[player[0].tetrade.x+x][player[0].tetrade.y+y].flag & FULL)
-					return FALSE;
-			}
-		}
+	// Check if valid position
+	if (!CheckValid(player[0].tetrade, newtype)) {
+		// Try various wallkicks
+
+		return FALSE;
 	}
-
-	// Check left...
-
-	for (y=0;y!=4;y++) {
-		for (x=0;x!=4;x++) {
-			if (tetra[newtype][x][y]) {
-				if (player[0].tetrade.x+x == -1) // we're going out!
-					return FALSE;
-			}
-		}
-	}
-
-	// check right
-
-	for (y=0;y!=4;y++) {
-		for (x=0;x!=4;x++) {
-			if (tetra[newtype][x][y]) {
-				if (player[0].tetrade.x+x == 10)
-					return FALSE;
-			}
-		}
-	}
-
-	// check down
-	
-	for (y=0;y!=4;y++) {
-		for (x=0;x!=4;x++) {
-			if (tetra[newtype][x][y]) {
-				if (player[0].tetrade.y+y == 24)
-					return FALSE;
-			}
-		}
-	}
-	
-	// all else, update new block and return true
 
 	player[0].tetrade.blocktype = newtype;
 	return TRUE;
